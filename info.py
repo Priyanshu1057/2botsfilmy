@@ -17,7 +17,7 @@ def is_enabled(value, default):
 # ============================
 # Bot Information Configuration
 # ============================
-SESSION = environ.get('SESSION', 'Filmy')   # Session name for the bot
+SESSION = environ.get('SESSION', 'dreamxbotz_search')   # Session name for the bot
 API_ID = int(environ.get('API_ID', '26442926')) # API ID from my.telegram.org
 API_HASH = environ.get('API_HASH', 'd091234d2c6e123e6d906d3829eb885b')  # API Hash from my.telegram.org
 BOT_TOKEN = environ.get('BOT_TOKEN', "")    # Bot token from @BotFather
@@ -101,20 +101,20 @@ LOG_API_CHANNEL = int(environ.get('LOG_API_CHANNEL', '-1002961297038')) #If Anyo
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://i.ibb.co/yB6thn5R/x.jpg")
 
 TUTORIAL = environ.get("TUTORIAL", "https://t.me/tutorial_filx/5")   # Tutorial link for verification
-TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/tutorial_filx/5")   # Second tutorial link for verification
+TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/tutorial_filx/7")   # Second tutorial link for verification
 TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/tutorial_filx/5")   # Third tutorial link for verification
 
 # Verification (Must Fill All Veriables. Else You Got Error
 SHORTENER_API = environ.get("SHORTENER_API", "3adca196c74366f9d2991580d3fc459015b8ae36") # Shortener API key
 SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "https://filmyflixhd.koyeb.app/api") # Shortener website
 
-SHORTENER_API2 = environ.get("SHORTENER_API2", "3adca196c74366f9d2991580d3fc459015b8ae36")  # Shortener API key for second website
+SHORTENER_API2 = environ.get("SHORTENER_API2", "f9da968c27a8594f2bbc3b2cd1e8778fa756b3a5")  # Shortener API key for second website
 SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "https://filmyflixhd.koyeb.app/api") # Shortener website for second website
 
 SHORTENER_API3 = environ.get("SHORTENER_API3", "3adca196c74366f9d2991580d3fc459015b8ae36")  
 SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "https://filmyflixhd.koyeb.app/api") # Shortener website for third website
 
-TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "43200")) # Time gap for two-step verification in seconds (default: 20 minutes)
+TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "3600")) # Time gap for two-step verification in seconds (default: 20 minutes)
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "43200"))    
 
 # ============================
