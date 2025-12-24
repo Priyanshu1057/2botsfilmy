@@ -106,13 +106,13 @@ TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/tutorial_filx/5")   # Third
 
 # Verification (Must Fill All Veriables. Else You Got Error
 SHORTENER_API = environ.get("SHORTENER_API", "3adca196c74366f9d2991580d3fc459015b8ae36") # Shortener API key
-SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "https://filmyflixhd.koyeb.app/api") # Shortener website
+SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "https://linkverify.vercel.app/api") # Shortener website
 
 SHORTENER_API2 = environ.get("SHORTENER_API2", "f9da968c27a8594f2bbc3b2cd1e8778fa756b3a5")  # Shortener API key for second website
-SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "https://filmyflixhd.koyeb.app/api") # Shortener website for second website
+SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "https://linkverify.vercel.app/api") # Shortener website for second website
 
 SHORTENER_API3 = environ.get("SHORTENER_API3", "3adca196c74366f9d2991580d3fc459015b8ae36")  
-SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "https://filmyflixhd.koyeb.app/api") # Shortener website for third website
+SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "https://linkverify.vercel.app/api") # Shortener website for third website
 
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "3600")) # Time gap for two-step verification in seconds (default: 20 minutes)
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "43200"))    
