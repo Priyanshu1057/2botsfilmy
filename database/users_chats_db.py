@@ -20,6 +20,8 @@ class Database:
         self.filename_col = self.db.filename
         self.movie_updates = self.db.movie_updates
         self.connection = self.db.connections
+        self.ads_link_col = self.db.ads_link
+        self.file_limit_col = self.db.file_limits
 
     async def add_name(self, filename):
         if await self.movie_updates.find_one({'_id': filename}):
@@ -425,7 +427,50 @@ class Database:
 
     async def update_maintenance_status(self, bot_id, enable):
         await self.update_bot_setting(bot_id, 'MAINTENANCE', enable)
-     
+
+    async def set_ads_link(self, link):
+        await self.ads_link_col.update_one({}, {"$set": {"link": link}}, upsert=True)
+
+    async def get_ads_link(self):
+        doc = await self.ads_link_col.find_one({})
+        return doc.get("link") if doc else None
+
+    async def del_ads_link(self):
+        try:
+            result = await self.ads_link_col.delete_one({})
+            return result.deleted_count > 0
+        except Exception:
+            return False
+
+    async def update_value(self, user_id, key, value):
+        await self.users.update_one(
+            {"id": user_id}, {"$set": {key: value}}, upsert=True
+        )
+
+    async def increment_file_limit(self, user_id: int):
+        await self.file_limit_col.update_one(
+            {'user_id': user_id},
+            {'$inc': {'file_count': 1}},
+            upsert=True
+        )
+
+    async def get_file_limit(self, user_id: int) -> int:
+        user = await self.file_limit_col.find_one({'user_id': user_id})
+        return user.get('file_count', 0) if user else 0
+
+    async def reset_file_limit(self, user_id: int):
+        await self.file_limit_col.update_one(
+            {'user_id': user_id},
+            {'$set': {'file_count': 0}},
+            upsert=True
+        )
+
+    async def reset_all_file_limits(self):
+        await self.file_limit_col.update_many(
+            {},
+            {'$set': {'file_count': 0}}
+        )
+
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
 
