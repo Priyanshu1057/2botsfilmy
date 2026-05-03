@@ -106,7 +106,7 @@ TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/tutorial_filx/7")   # Third
 
 # Verification (Must Fill All Veriables. Else You Got Error
 SHORTENER_API = environ.get("SHORTENER_API", "f9da968c27a8594f2bbc3b2cd1e8778fa756b3a5") # Shortener API key
-SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "vplink.in") # Shortener website
+SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "https://linkverify.vercel.app/api") # Shortener website
 
 SHORTENER_API2 = environ.get("SHORTENER_API2", "3adca196c74366f9d2991580d3fc459015b8ae36")  # Shortener API key for second website
 SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "arolinks.com") # Shortener website for second website
