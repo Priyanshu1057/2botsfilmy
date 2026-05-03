@@ -188,24 +188,24 @@ async def start(client, message):
             try:
                 uss = await client.get_users(user_id)
             except Exception:
-                return 	    
+                return      
             referdb.add_user(message.from_user.id)
             fromuse = referdb.get_refer_points(user_id) + 10
             if fromuse == 100:
                 referdb.add_refer_points(user_id, 0) 
-                await message.reply_text(script.REFER_CONGRATS_ALRT.format(uss.mention))		    
-                await message.reply_text(user_id, script.REFER_INVITED_ALRT.format(message.from_user.mention)) 	
+                await message.reply_text(script.REFER_CONGRATS_ALRT.format(uss.mention))                    
+                await message.reply_text(user_id, script.REFER_INVITED_ALRT.format(message.from_user.mention))  
                 seconds = 2592000
                 if seconds > 0:
                     expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
                     user_data = {"id": user_id, "expiry_time": expiry_time}  # Using "id" instead of "user_id"  
-                    await db.update_user(user_data)  # Use the update_user method to update or insert user data		    
+                    await db.update_user(user_data)  # Use the update_user method to update or insert user data             
                     await client.send_message(
                     chat_id=user_id,
                     text=f"<b>Hᴇʏ {uss.mention}\n\nYᴏᴜ ɢᴏᴛ 1 ᴍᴏɴᴛʜ ᴘʀᴇᴍɪᴜᴍ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙʏ ɪɴᴠɪᴛɪɴɢ 10 ᴜsᴇʀs ❗", disable_web_page_preview=True              
                     )
                 for admin in ADMINS:
-                    await client.send_message(chat_id=admin, text=f"Sᴜᴄᴄᴇss ғᴜʟʟʏ ᴛᴀsᴋ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ʙʏ ᴛʜɪs ᴜsᴇʀ:\n\nuser Nᴀᴍᴇ: {uss.mention}\n\nUsᴇʀ ɪᴅ: {uss.id}!")	
+                    await client.send_message(chat_id=admin, text=f"Sᴜᴄᴄᴇss ғᴜʟʟʏ ᴛᴀsᴋ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ʙʏ ᴛʜɪs ᴜsᴇʀ:\n\nuser Nᴀᴍᴇ: {uss.mention}\n\nUsᴇʀ ɪᴅ: {uss.id}!")      
             else:
                 referdb.add_refer_points(user_id, fromuse)
                 await message.reply_text(script.REFER_INVITED_ALRT.format(uss.mention))
@@ -226,6 +226,30 @@ async def start(client, message):
                 parse_mode=enums.ParseMode.HTML
             )
             return  
+
+        if len(message.command) == 2 and message.command[1] == "ads":
+            ads_msg, _, impression = await mdb.get_advirtisment()
+            user = await db.get_user(message.from_user.id)
+            seen_ads = user.get("seen_ads", False) if user else False
+            ads_photo = await db.get_ads_link()
+            buttons = [[InlineKeyboardButton("❌ ᴄʟᴏꜱᴇ ❌", callback_data="close_data")]]
+            reply_markup = InlineKeyboardMarkup(buttons)
+            if ads_msg:
+                await message.reply_photo(
+                    photo=ads_photo if ads_photo else random.choice(PICS),
+                    caption=ads_msg,
+                    reply_markup=reply_markup,
+                    parse_mode=enums.ParseMode.HTML,
+                )
+                if impression is not None and not seen_ads:
+                    await mdb.update_advirtisment_impression(int(impression) - 1)
+                    await db.update_value(message.from_user.id, "seen_ads", True)
+            else:
+                await message.reply("<b>No Ads Found</b>")
+            await mdb.reset_advertisement_if_expired()
+            if ads_msg is None and seen_ads:
+                await db.update_value(message.from_user.id, "seen_ads", False)
+            return
 
         if len(message.command) == 2 and message.command[1].startswith('getfile'):
             movies = message.command[1].split("-", 1)[1] 
@@ -322,6 +346,22 @@ async def start(client, message):
             except Exception as e:
                 print(f"Error In Verification - {e}")
                 pass
+
+        # File Limit Check (skip for premium users and allfiles requests)
+        is_allfiles_request = data and data.startswith("allfiles")
+        if IS_FILE_LIMIT and FILES_LIMIT > 0 and not is_allfiles_request and not await db.has_premium_access(user_id):
+            current_file_count = await db.get_file_limit(user_id)
+            if current_file_count >= FILES_LIMIT:
+                await sticker.delete() if sticker else None
+                return await message.reply_text(
+                    f"<b>⚠️ ʏᴏᴜ ʜᴀᴠᴇ ʀᴇᴀᴄʜᴇᴅ ʏᴏᴜʀ ꜰʀᴇᴇ ꜰɪʟᴇ ʟɪᴍɪᴛ!\n\n"
+                    f"📊 ᴜsᴇᴅ: {current_file_count}/{FILES_LIMIT} ꜰʀᴇᴇ ꜰɪʟᴇs\n\n"
+                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!\n"
+                    f"ᴏʀ ᴄᴏɴᴛᴀᴄᴛ ᴀᴅᴍɪɴ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ.</b>",
+                    parse_mode=enums.ParseMode.HTML
+                )
+            await db.increment_file_limit(user_id)
+            current_file_count += 1
 
         # Now, await the file details task
         files_ = await file_details_task
@@ -1449,6 +1489,75 @@ async def remove_fsub(client, message):
     except Exception as e:
         print(f"[ERROR] remove_fsub: {e}")
         await message.reply_text(f"⚠️ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ: {e}")
+
+@Client.on_message(filters.command("resetlimit") & filters.user(ADMINS))
+async def reset_all_limits(client, message):
+    try:
+        await db.reset_all_file_limits()
+        await message.reply_text(
+            "<b>✅ sᴜᴄᴄᴇssꜰᴜʟʟʏ ʀᴇsᴇᴛ ꜰɪʟᴇ ʟɪᴍɪᴛs ꜰᴏʀ ᴀʟʟ ᴜsᴇʀs!</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+    except Exception as e:
+        await message.reply_text(
+            f"<b>❌ ᴇʀʀᴏʀ ʀᴇsᴇᴛᴛɪɴɢ ʟɪᴍɪᴛs: {str(e)}</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+
+@Client.on_message(filters.command("resetuser") & filters.user(ADMINS))
+async def reset_user_limit(client, message):
+    try:
+        if len(message.command) < 2:
+            return await message.reply_text(
+                "<b>❌ ᴜsᴀɢᴇ: /resetuser ᴜsᴇʀ_ɪᴅ</b>",
+                parse_mode=enums.ParseMode.HTML
+            )
+        user_id = int(message.command[1])
+        old_limit = await db.get_file_limit(user_id)
+        await db.reset_file_limit(user_id)
+        await message.reply_text(
+            f"<b>✅ sᴜᴄᴄᴇssꜰᴜʟʟʏ ʀᴇsᴇᴛ ꜰɪʟᴇ ʟɪᴍɪᴛ ꜰᴏʀ ᴜsᴇʀ {user_id}!\n\n"
+            f"ᴘʀᴇᴠɪᴏᴜs ʟɪᴍɪᴛ: {old_limit}\n"
+            f"ᴄᴜʀʀᴇɴᴛ ʟɪᴍɪᴛ: 0</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+    except ValueError:
+        await message.reply_text(
+            "<b>❌ ᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠᴀʟɪᴅ ᴜsᴇʀ ɪᴅ!</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+    except Exception as e:
+        await message.reply_text(
+            f"<b>❌ ᴇʀʀᴏʀ ʀᴇsᴇᴛᴛɪɴɢ ᴜsᴇʀ ʟɪᴍɪᴛ: {str(e)}</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+
+@Client.on_message(filters.command("checklimit") & filters.user(ADMINS))
+async def check_user_limit(client, message):
+    try:
+        if len(message.command) < 2:
+            return await message.reply_text(
+                "<b>❌ ᴜsᴀɢᴇ: /checklimit ᴜsᴇʀ_ɪᴅ</b>",
+                parse_mode=enums.ParseMode.HTML
+            )
+        user_id = int(message.command[1])
+        current_limit = await db.get_file_limit(user_id)
+        await message.reply_text(
+            f"<b>📊 ꜰɪʟᴇ ʟɪᴍɪᴛ sᴛᴀᴛᴜs ꜰᴏʀ ᴜsᴇʀ {user_id}:\n\n"
+            f"ᴄᴜʀʀᴇɴᴛ ᴅᴏᴡɴʟᴏᴀᴅs: {current_limit}/{FILES_LIMIT}\n"
+            f"ʀᴇᴍᴀɪɴɪɴɢ: {max(0, FILES_LIMIT - current_limit)}</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+    except ValueError:
+        await message.reply_text(
+            "<b>❌ ᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠᴀʟɪᴅ ᴜsᴇʀ ɪᴅ!</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
+    except Exception as e:
+        await message.reply_text(
+            f"<b>❌ ᴇʀʀᴏʀ ᴄʜᴇᴄᴋɪɴɢ ᴜsᴇʀ ʟɪᴍɪᴛ: {str(e)}</b>",
+            parse_mode=enums.ParseMode.HTML
+        )
 
 @Client.on_message(filters.command('clean_groups') & filters.user(ADMINS))
 async def clean_groups_handler(client, message):

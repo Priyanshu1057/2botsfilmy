@@ -38,6 +38,26 @@ BUTTONS2 = {}
 SPELL_CHECK = {}
 
 
+def normalize_season_query(query: str) -> str:
+    if not query:
+        return ""
+    # Convert "season N" or "seasonN" -> sNN
+    query = re.sub(
+        r"season\s*(\d{1,2})",
+        lambda m: f"s{int(m.group(1)):02}",
+        query,
+        flags=re.I
+    )
+    # Convert "episode N" or "episodeN" -> eNN
+    query = re.sub(
+        r"episode\s*(\d{1,3})",
+        lambda m: f"e{int(m.group(1)):02}",
+        query,
+        flags=re.I
+    )
+    return query.lower()
+
+
 @Client.on_message(filters.group & filters.text & filters.incoming & ~filters.regex(r"^/") )
 async def give_filter(client, message):
     if EMOJI_MODE:
@@ -59,7 +79,7 @@ async def give_filter(client, message):
         except KeyError:
             pass
     else:
-        search = message.text
+        search = normalize_season_query(message.text)
         _, _, total_results = await get_search_results(chat_id=message.chat.id, query=search.lower(), offset=0, filter=True)
         if total_results == 0:
             return
@@ -411,7 +431,7 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
 async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     _, qual, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
+    search = normalize_season_query(FRESH.get(key))
     search = search.replace("_", " ")
     baal = qual in search
     if baal:
@@ -1767,6 +1787,7 @@ async def auto_filter(client, msg, spoll=False):
                 search = search.replace("-", " ")
                 search = re.sub(r"[:']", "", search)
                 search = re.sub(r"\s+", " ", search).strip()
+                search = normalize_season_query(search)
                 files, offset, total_results = await get_search_results(message.chat.id, search, offset=0, filter=True)
                 settings = await get_settings(message.chat.id)
                 if not files:
@@ -1943,6 +1964,17 @@ async def auto_filter(client, msg, spoll=False):
 
                     for idx, file in enumerate(files, start=1):
                         cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>[{get_size(file.file_size)}] {clean_filename(file.file_name)}\n</a></b>"
+        ads_msg, ads_name, _ = await mdb.get_advirtisment()
+        ads_text = ""
+        if ads_msg is not None and ads_name is not None:
+            ads_url = f"https://telegram.me/{temp.U_NAME}?start=ads"
+            ads_text = f"<a href={ads_url}>{ads_name}</a>"
+        js_ads = (
+            f"\n━━━━━━━━━━━━━━━━━━\n<b>{ads_text}</b>\n━━━━━━━━━━━━━━━━━━"
+            if ads_text
+            else ""
+        )
+        cap += js_ads
         sent = None
         try:
             if imdb and imdb.get('poster'):
@@ -1985,6 +2017,7 @@ async def auto_filter(client, msg, spoll=False):
         return
 
 async def ai_spell_check(chat_id, wrong_name):
+    wrong_name = normalize_season_query(wrong_name)
     async def search_movie(wrong_name):
         search_results = imdb.search_movie(wrong_name)
         if not search_results or not hasattr(search_results, "titles"):
@@ -2006,7 +2039,7 @@ async def ai_spell_check(chat_id, wrong_name):
 
 async def advantage_spell_chok(client, message):
     mv_id = message.id
-    search = message.text
+    search = normalize_season_query(message.text)
     chat_id = message.chat.id
     settings = await get_settings(chat_id)
     query = re.sub(
