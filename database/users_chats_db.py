@@ -152,7 +152,7 @@ class Database:
             'auto_ffilter': AUTO_FFILTER,
             'max_btn': MAX_BTN,
             'template': IMDB_TEMPLATE,
-            'log': LOG_CHANNEL,
+            'log': LOG_VR_CHANNEL,
             'tutorial': TUTORIAL,
             'tutorial_2': TUTORIAL_2,
             'tutorial_3': TUTORIAL_3,
@@ -419,6 +419,12 @@ class Database:
 
     async def update_movie_update_status(self, bot_id, enable):
         await self.update_bot_setting(bot_id, 'MOVIE_UPDATE_NOTIFICATION', enable)
+
+    async def maintenance_status(self, bot_id):
+        return await self.get_bot_setting(bot_id, 'MAINTENANCE', MAINTENANCE)
+
+    async def update_maintenance_status(self, bot_id, enable):
+        await self.update_bot_setting(bot_id, 'MAINTENANCE', enable)
      
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
