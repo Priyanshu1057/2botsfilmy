@@ -7,9 +7,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Build excluded chats list safely — SUPPORT_CHAT_ID can be None if not configured
+_excluded_chats = [SUPPORT_CHAT_ID] if SUPPORT_CHAT_ID else []
+_chat_filter = ~filters.chat(_excluded_chats) if _excluded_chats else filters.create(lambda _, __, ___: True)
 
 
-@Client.on_message(filters.text & (filters.group | filters.private) & filters.incoming & ~filters.regex(r"^/") & ~filters.user(ADMINS) & ~filters.chat(SUPPORT_CHAT_ID), group=-5)
+@Client.on_message(
+    (filters.group | filters.private)
+    & filters.incoming
+    & ~filters.user(ADMINS)
+    & _chat_filter,
+    group=-5
+)
 async def maintenance_interceptor(bot: Client, message: Message):
     bot_id = bot.me.id
     if await db.maintenance_status(bot_id):
@@ -20,7 +29,11 @@ async def maintenance_interceptor(bot: Client, message: Message):
         )
         message.stop_propagation()
 
-@Client.on_callback_query(~filters.user(ADMINS) & ~filters.chat(SUPPORT_CHAT_ID), group=-5)
+
+@Client.on_callback_query(
+    ~filters.user(ADMINS) & _chat_filter,
+    group=-5
+)
 async def maintenance_callback_interceptor(bot: Client, query: CallbackQuery):
     bot_id = bot.me.id
     if await db.maintenance_status(bot_id):
@@ -30,61 +43,66 @@ async def maintenance_callback_interceptor(bot: Client, query: CallbackQuery):
         )
         query.stop_propagation()
 
+
 @Client.on_message(filters.command("maintenance") & filters.user(ADMINS))
 async def maintenance_cmd(bot: Client, message: Message):
     bot_id = bot.me.id
     is_maintenance = await db.maintenance_status(bot_id)
-    
+
     status_text = "<b>Enabled 🟢</b>" if is_maintenance else "<b>Disabled 🔴</b>"
-    
+
     buttons = [
         [
             InlineKeyboardButton(
                 "Turn ON" if not is_maintenance else "Already ON",
-                callback_data="maintenance_on" if not is_maintenance else "none"
+                callback_data="maintenance_on" if not is_maintenance else "maintenance_none"
             ),
             InlineKeyboardButton(
                 "Turn OFF" if is_maintenance else "Already OFF",
-                callback_data="maintenance_off" if is_maintenance else "none"
+                callback_data="maintenance_off" if is_maintenance else "maintenance_none"
             )
         ]
     ]
-    
+
     await message.reply_text(
         text=f"<b>🛠️ Maintenance Mode Status</b>\n\nCurrent Status: {status_text}\n\nUse the buttons below to toggle maintenance mode.",
         reply_markup=InlineKeyboardMarkup(buttons),
         parse_mode=enums.ParseMode.HTML
     )
 
-@Client.on_callback_query(filters.regex(r"^maintenance_") & filters.user(ADMINS))
+
+@Client.on_callback_query(filters.regex(r"^maintenance_(on|off|none)$") & filters.user(ADMINS))
 async def maintenance_toggle_callback(bot: Client, query: CallbackQuery):
     bot_id = bot.me.id
     action = query.data.split("_")[1]
-    
+
+    if action == "none":
+        await query.answer("Already in this state!", show_alert=False)
+        return
+
     if action == "on":
         await db.update_maintenance_status(bot_id, True)
         await query.answer("Maintenance Mode Enabled 🟢", show_alert=True)
     elif action == "off":
         await db.update_maintenance_status(bot_id, False)
         await query.answer("Maintenance Mode Disabled 🔴", show_alert=True)
-    
-    # Update message
+
     is_maintenance = await db.maintenance_status(bot_id)
     status_text = "<b>Enabled 🟢</b>" if is_maintenance else "<b>Disabled 🔴</b>"
-    
+
     buttons = [
         [
             InlineKeyboardButton(
                 "Turn ON" if not is_maintenance else "Already ON",
-                callback_data="maintenance_on" if not is_maintenance else "none"
+                callback_data="maintenance_on" if not is_maintenance else "maintenance_none"
             ),
             InlineKeyboardButton(
                 "Turn OFF" if is_maintenance else "Already OFF",
-                callback_data="maintenance_off" if is_maintenance else "none"
+                callback_data="maintenance_off" if is_maintenance else "maintenance_none"
             )
         ]
     ]
-    
+
     try:
         await query.message.edit_text(
             text=f"<b>🛠️ Maintenance Mode Status</b>\n\nCurrent Status: {status_text}\n\nUse the buttons below to toggle maintenance mode.",
@@ -93,7 +111,3 @@ async def maintenance_toggle_callback(bot: Client, query: CallbackQuery):
         )
     except Exception:
         pass
-
-@Client.on_callback_query(filters.regex("none"))
-async def none_callback(bot, query):
-    await query.answer("Already in this state!", show_alert=False)
