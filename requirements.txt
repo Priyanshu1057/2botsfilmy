@@ -8,6 +8,7 @@ requests
 bs4
 shortzy
 pytz
+httpx
 aiohttp
 telegraph
 pymediainfo-pyrofork
