@@ -60,6 +60,7 @@ async def start(client, message):
             current_time = datetime.now(tz=ist_timezone)
             result = await db.update_notcopy_user(user_id, {key:current_time})
             await db.update_verify_id_info(user_id, verify_id, {"verified":True})
+            await db.reset_file_limit(user_id)
             if key == "third_time_verified": 
                 num = 3 
             else: 
@@ -359,11 +360,33 @@ async def start(client, message):
             current_file_count = await db.get_file_limit(user_id)
             if current_file_count >= FILES_LIMIT:
                 await sticker.delete() if sticker else None
+                limit_buttons = []
+                try:
+                    lmt_settings = await get_settings(grp_id)
+                    is_second_shortener = await db.use_second_shortener(user_id, lmt_settings.get('verify_time', TWO_VERIFY_GAP))
+                    is_third_shortener = await db.use_third_shortener(user_id, lmt_settings.get('third_verify_time', THREE_VERIFY_GAP))
+                    if lmt_settings.get("is_verify", IS_VERIFY):
+                        lmt_verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                        await db.create_verify_id(user_id, lmt_verify_id)
+                        temp.VERIFICATIONS[user_id] = grp_id
+                        verify_url = await get_shortlink(
+                            f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{lmt_verify_id}_{file_id}",
+                            grp_id, is_second_shortener, is_third_shortener
+                        )
+                        limit_buttons.append([
+                            InlineKeyboardButton(text="♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴍᴏʀᴇ ꜰɪʟᴇs ♻️", url=verify_url)
+                        ])
+                except Exception:
+                    pass
+                limit_buttons.append([
+                    InlineKeyboardButton("🚀 Buy Premium 🚀", callback_data="premium_info")
+                ])
                 return await message.reply_text(
                     f"<b>⚠️ ʏᴏᴜ ʜᴀᴠᴇ ʀᴇᴀᴄʜᴇᴅ ʏᴏᴜʀ ꜰʀᴇᴇ ꜰɪʟᴇ ʟɪᴍɪᴛ!\n\n"
                     f"📊 ᴜsᴇᴅ: {current_file_count}/{FILES_LIMIT} ꜰʀᴇᴇ ꜰɪʟᴇs\n\n"
-                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!\n"
-                    f"ᴏʀ ᴄᴏɴᴛᴀᴄᴛ ᴀᴅᴍɪɴ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ.</b>",
+                    f"♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ  ᴏʀ\n"
+                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!</b>",
+                    reply_markup=InlineKeyboardMarkup(limit_buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
             await db.increment_file_limit(user_id)
