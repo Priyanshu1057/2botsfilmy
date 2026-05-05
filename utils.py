@@ -14,6 +14,7 @@ from typing import Union
 from Script import script
 from typing import List
 from database.users_chats_db import db
+from database.config_db import mdb
 from bs4 import BeautifulSoup
 import requests
 from shortzy import Shortzy
@@ -1088,6 +1089,17 @@ async def get_cap(settings, remaining_seconds, files, query, total_results, sear
                             f"{clean_filename(file.file_name)}\n\n"
                             f"</a></b>"
                         )
+        ads_msg, ads_name, _ = await mdb.get_advirtisment()
+        ads_text = ""
+        if ads_msg is not None and ads_name is not None:
+            ads_url = f"https://telegram.me/{temp.U_NAME}?start=ads"
+            ads_text = f"<a href={ads_url}>{ads_name}</a>"
+        js_ads = (
+            f"\n━━━━━━━━━━━━━━━━━━\n<b>{ads_text}</b>\n━━━━━━━━━━━━━━━━━━"
+            if ads_text
+            else ""
+        )
+        cap += js_ads
         return cap
     except Exception as e:
         logging.error(f"Error in get_cap: {e}")
