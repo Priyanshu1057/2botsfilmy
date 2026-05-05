@@ -98,8 +98,8 @@ LANDSCAPE_POSTER = bool(environ.get('LANDSCAPE_POSTER', True)) # Shows landscape
 # ============================
 # File Limit Settings
 # ============================
-IS_FILE_LIMIT = is_enabled(environ.get('IS_FILE_LIMIT', "False"), False)  # Enable Or Disable File Limit
-FILES_LIMIT = int(environ.get("FREE_FILES", "10"))  # No. of Files User Gets For Free
+IS_FILE_LIMIT = is_enabled(environ.get('IS_FILE_LIMIT', "True"), True)  # Enable Or Disable File Limit
+FILES_LIMIT = int(environ.get("FREE_FILES", "2"))  # No. of Files User Gets For Free
 
 # ============================
 # Verification Settings
