@@ -43,36 +43,6 @@ async def start(client, message):
                 await message.react(emoji="⚡️")
                 pass
         m = message
-        if len(m.command) == 2 and m.command[1].startswith('limitverify'):
-            _, userid, verify_id, file_id = m.command[1].split("_", 3)
-            user_id = int(userid)
-            grp_id = temp.VERIFICATIONS.get(user_id, 0)
-            settings = await get_settings(grp_id)
-            verify_id_info = await db.get_verify_id_info(user_id, verify_id)
-            if not verify_id_info or verify_id_info["verified"]:
-                return await message.reply(script.LINK_EXPIRED_TXT)
-            ist_timezone = pytz.timezone('Asia/Kolkata')
-            if await db.user_verified(user_id):
-                key = "third_time_verified"
-            else:
-                key = "second_time_verified" if await db.is_user_verified(user_id) else "last_verified"
-            current_time = datetime.now(tz=ist_timezone)
-            await db.update_notcopy_user(user_id, {key: current_time})
-            await db.update_verify_id_info(user_id, verify_id, {"verified": True})
-            await db.reset_file_limit(user_id)
-            verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=file_{grp_id}_{file_id}"
-            btn = [[InlineKeyboardButton("✅ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ɢᴇᴛ ꜰɪʟᴇ ✅", url=verifiedfiles)]]
-            dlt = await m.reply_photo(
-                photo=(VERIFY_IMG),
-                caption=script.VERIFY_COMPLETE_TEXT.format(message.from_user.mention, get_readable_time(TWO_VERIFY_GAP)),
-                reply_markup=InlineKeyboardMarkup(btn),
-                parse_mode=enums.ParseMode.HTML
-            )
-            await sticker.delete()
-            await asyncio.sleep(300)
-            await dlt.delete()
-            return
-
         if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
             _, userid, verify_id, file_id = m.command[1].split("_", 3)
             user_id = int(userid)
@@ -339,45 +309,6 @@ async def start(client, message):
 
 
         user_id = m.from_user.id
-
-        # File Limit Check — must run BEFORE verification so limit message is shown correctly
-        is_allfiles_request = data and data.startswith("allfiles")
-        if IS_FILE_LIMIT and FILES_LIMIT > 0 and not is_allfiles_request and not await db.has_premium_access(user_id):
-            current_file_count = await db.get_file_limit(user_id)
-            if current_file_count >= FILES_LIMIT:
-                await sticker.delete() if sticker else None
-                limit_buttons = []
-                try:
-                    lmt_settings = await get_settings(grp_id)
-                    is_second_shortener_lmt = await db.use_second_shortener(user_id, lmt_settings.get('verify_time', TWO_VERIFY_GAP))
-                    is_third_shortener_lmt = await db.use_third_shortener(user_id, lmt_settings.get('third_verify_time', THREE_VERIFY_GAP))
-                    if lmt_settings.get("is_verify", IS_VERIFY):
-                        lmt_verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                        await db.create_verify_id(user_id, lmt_verify_id)
-                        temp.VERIFICATIONS[user_id] = grp_id
-                        verify_url = await get_shortlink(
-                            f"https://telegram.me/{temp.U_NAME}?start=limitverify_{user_id}_{lmt_verify_id}_{file_id}",
-                            grp_id, is_second_shortener_lmt, is_third_shortener_lmt
-                        )
-                        limit_buttons.append([
-                            InlineKeyboardButton(text="♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴍᴏʀᴇ ꜰɪʟᴇs ♻️", url=verify_url)
-                        ])
-                except Exception:
-                    pass
-                limit_buttons.append([
-                    InlineKeyboardButton("🚀 Buy Premium 🚀", callback_data="premium_info")
-                ])
-                return await message.reply_text(
-                    f"<b>⚠️ ʏᴏᴜ ʜᴀᴠᴇ ʀᴇᴀᴄʜᴇᴅ ʏᴏᴜʀ ꜰʀᴇᴇ ꜰɪʟᴇ ʟɪᴍɪᴛ!\n\n"
-                    f"📊 ᴜsᴇᴅ: {current_file_count}/{FILES_LIMIT} ꜰʀᴇᴇ ꜰɪʟᴇs\n\n"
-                    f"♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ  ᴏʀ\n"
-                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!</b>",
-                    reply_markup=InlineKeyboardMarkup(limit_buttons),
-                    parse_mode=enums.ParseMode.HTML
-                )
-            await db.increment_file_limit(user_id)
-            current_file_count += 1
-
         if not await db.has_premium_access(user_id):
             try:
                 grp_id = int(grp_id)
@@ -421,6 +352,22 @@ async def start(client, message):
             except Exception as e:
                 print(f"Error In Verification - {e}")
                 pass
+
+        # File Limit Check (skip for premium users and allfiles requests)
+        is_allfiles_request = data and data.startswith("allfiles")
+        if IS_FILE_LIMIT and FILES_LIMIT > 0 and not is_allfiles_request and not await db.has_premium_access(user_id):
+            current_file_count = await db.get_file_limit(user_id)
+            if current_file_count >= FILES_LIMIT:
+                await sticker.delete() if sticker else None
+                return await message.reply_text(
+                    f"<b>⚠️ ʏᴏᴜ ʜᴀᴠᴇ ʀᴇᴀᴄʜᴇᴅ ʏᴏᴜʀ ꜰʀᴇᴇ ꜰɪʟᴇ ʟɪᴍɪᴛ!\n\n"
+                    f"📊 ᴜsᴇᴅ: {current_file_count}/{FILES_LIMIT} ꜰʀᴇᴇ ꜰɪʟᴇs\n\n"
+                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!\n"
+                    f"ᴏʀ ᴄᴏɴᴛᴀᴄᴛ ᴀᴅᴍɪɴ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ.</b>",
+                    parse_mode=enums.ParseMode.HTML
+                )
+            await db.increment_file_limit(user_id)
+            current_file_count += 1
 
         # Now, await the file details task
         files_ = await file_details_task
