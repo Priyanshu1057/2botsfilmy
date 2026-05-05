@@ -43,6 +43,36 @@ async def start(client, message):
                 await message.react(emoji="⚡️")
                 pass
         m = message
+        if len(m.command) == 2 and m.command[1].startswith('limitverify'):
+            _, userid, verify_id, file_id = m.command[1].split("_", 3)
+            user_id = int(userid)
+            grp_id = temp.VERIFICATIONS.get(user_id, 0)
+            settings = await get_settings(grp_id)
+            verify_id_info = await db.get_verify_id_info(user_id, verify_id)
+            if not verify_id_info or verify_id_info["verified"]:
+                return await message.reply(script.LINK_EXPIRED_TXT)
+            ist_timezone = pytz.timezone('Asia/Kolkata')
+            if await db.user_verified(user_id):
+                key = "third_time_verified"
+            else:
+                key = "second_time_verified" if await db.is_user_verified(user_id) else "last_verified"
+            current_time = datetime.now(tz=ist_timezone)
+            await db.update_notcopy_user(user_id, {key: current_time})
+            await db.update_verify_id_info(user_id, verify_id, {"verified": True})
+            await db.reset_file_limit(user_id)
+            verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=file_{grp_id}_{file_id}"
+            btn = [[InlineKeyboardButton("✅ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ɢᴇᴛ ꜰɪʟᴇ ✅", url=verifiedfiles)]]
+            dlt = await m.reply_photo(
+                photo=(VERIFY_IMG),
+                caption=script.VERIFY_COMPLETE_TEXT.format(message.from_user.mention, get_readable_time(TWO_VERIFY_GAP)),
+                reply_markup=InlineKeyboardMarkup(btn),
+                parse_mode=enums.ParseMode.HTML
+            )
+            await sticker.delete()
+            await asyncio.sleep(300)
+            await dlt.delete()
+            return
+
         if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
             _, userid, verify_id, file_id = m.command[1].split("_", 3)
             user_id = int(userid)
@@ -60,7 +90,6 @@ async def start(client, message):
             current_time = datetime.now(tz=ist_timezone)
             result = await db.update_notcopy_user(user_id, {key:current_time})
             await db.update_verify_id_info(user_id, verify_id, {"verified":True})
-            await db.reset_file_limit(user_id)
             if key == "third_time_verified": 
                 num = 3 
             else: 
@@ -370,7 +399,7 @@ async def start(client, message):
                         await db.create_verify_id(user_id, lmt_verify_id)
                         temp.VERIFICATIONS[user_id] = grp_id
                         verify_url = await get_shortlink(
-                            f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{lmt_verify_id}_{file_id}",
+                            f"https://telegram.me/{temp.U_NAME}?start=limitverify_{user_id}_{lmt_verify_id}_{file_id}",
                             grp_id, is_second_shortener, is_third_shortener
                         )
                         limit_buttons.append([
