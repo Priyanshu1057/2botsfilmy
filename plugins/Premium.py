@@ -6,7 +6,7 @@ from info import *
 from utils import get_seconds, temp
 from database.users_chats_db import db 
 import asyncio
-from pyrogram import Client, filters 
+from pyrogram import Client, filters, enums
 from pyrogram.errors.exceptions.bad_request_400 import MessageTooLong
 from pyrogram.types import *
 
@@ -137,31 +137,50 @@ async def give_premium_cmd_handler(client, message):
 @Client.on_message(filters.command("premium_users") & filters.user(ADMINS))
 async def premium_user(client, message):
     aa = await message.reply_text("<i>ꜰᴇᴛᴄʜɪɴɢ...</i>")
-    new = f" ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀꜱ ʟɪꜱᴛ :\n\n"
+    new = f"💎 ᴘʀᴇᴍɪᴜᴍ ᴜꜱᴇʀꜱ ʟɪꜱᴛ :\n\n"
     user_count = 1
-    users = await db.get_all_users()
-    async for user in users:
-        data = await db.get_user(user['id'])
-        if data and data.get("expiry_time"):
-            expiry = data.get("expiry_time") 
-            expiry_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata"))
-            expiry_str_in_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")            
-            current_time = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
-            time_left = expiry_ist - current_time
-            days = time_left.days
-            hours, remainder = divmod(time_left.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            time_left_str = f"{days} days, {hours} hours, {minutes} minutes"	 
-            new += f"{user_count}. {(await client.get_users(user['id'])).mention}\n👤 ᴜꜱᴇʀ ɪᴅ : {user['id']}\n⏳ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ : {expiry_str_in_ist}\n⏰ ᴛɪᴍᴇ ʟᴇꜰᴛ : {time_left_str}\n"
-            user_count += 1
-        else:
-            pass
-    try:    
-        await aa.edit_text(new)
+    try:
+        users = await db.get_premium_users()
+        async for user in users:
+            expiry = user.get("expiry_time")
+            if not expiry:
+                continue
+            try:
+                expiry_ist = expiry.astimezone(pytz.timezone("Asia/Kolkata"))
+                expiry_str_in_ist = expiry_ist.strftime("%d-%m-%Y\n⏱️ ᴇxᴘɪʀʏ ᴛɪᴍᴇ : %I:%M:%S %p")
+                current_time = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+                time_left = expiry_ist - current_time
+                days = time_left.days
+                hours, remainder = divmod(time_left.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                time_left_str = f"{days}d {hours}h {minutes}m"
+                try:
+                    user_obj = await client.get_users(user['id'])
+                    mention = user_obj.mention
+                except Exception:
+                    mention = f"User {user['id']}"
+                new += (
+                    f"{user_count}. {mention}\n"
+                    f"👤 ɪᴅ : <code>{user['id']}</code>\n"
+                    f"⏳ ᴇxᴘɪʀʏ : {expiry_str_in_ist}\n"
+                    f"⏰ ʟᴇꜰᴛ : {time_left_str}\n\n"
+                )
+                user_count += 1
+            except Exception:
+                continue
+    except Exception as e:
+        return await aa.edit_text(f"<b>❌ Error fetching premium users:\n<code>{e}</code></b>")
+
+    if user_count == 1:
+        return await aa.edit_text("<b>✅ No active premium users found.</b>")
+
+    try:
+        await aa.edit_text(new, parse_mode=enums.ParseMode.HTML)
     except MessageTooLong:
         with open('usersplan.txt', 'w+') as outfile:
             outfile.write(new)
-        await message.reply_document('usersplan.txt', caption="Paid Users:")
+        await message.reply_document('usersplan.txt', caption="💎 Paid Users List")
+        await aa.delete()
 
 
 @Client.on_message(filters.command("plan"))
@@ -199,8 +218,8 @@ async def premium_button(client, callback_query: CallbackQuery):
         amount = int(callback_query.data.split("_")[1])
         if amount in STAR_PREMIUM_PLANS:
             try:
-                buttons = [[	
-                    InlineKeyboardButton("ᴄᴀɴᴄᴇʟ 🚫", callback_data="close_data"),		    				
+                buttons = [[    
+                    InlineKeyboardButton("ᴄᴀɴᴄᴇʟ 🚫", callback_data="close_data"),                                               
                 ]]
                 reply_markup = InlineKeyboardMarkup(buttons)
                 await client.send_invoice(
