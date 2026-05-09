@@ -44,7 +44,7 @@ async def start(client, message):
                 pass
         m = message
 
-        # ── limitverify: file-limit-specific verification completion ──
+        # ── limitverify: resets file limit after user verifies from limit screen ──
         if len(m.command) == 2 and m.command[1].startswith('limitverify'):
             _, userid, verify_id, file_id = m.command[1].split("_", 3)
             user_id = int(userid)
@@ -70,7 +70,7 @@ async def start(client, message):
                 reply_markup=InlineKeyboardMarkup(btn),
                 parse_mode=enums.ParseMode.HTML
             )
-            await sticker.delete()
+            if sticker: await sticker.delete()
             await asyncio.sleep(300)
             await dlt.delete()
             return
@@ -115,7 +115,7 @@ async def start(client, message):
                 reply_markup=reply_markup,
                 parse_mode=enums.ParseMode.HTML
             )
-            await sticker.delete()
+            if sticker: await sticker.delete()
             await asyncio.sleep(300)
             await dlt.delete()
             return         
@@ -127,7 +127,7 @@ async def start(client, message):
                       ]]
             reply_markup = InlineKeyboardMarkup(buttons)
             await message.reply(script.GSTART_TXT.format(message.from_user.mention if message.from_user else message.chat.title, temp.U_NAME, temp.B_NAME), reply_markup=reply_markup, disable_web_page_preview=True)
-            await sticker.delete()
+            if sticker: await sticker.delete()
             await asyncio.sleep(2) 
             if not await db.get_chat(message.chat.id):
                 total=await client.get_chat_members_count(message.chat.id)
@@ -341,41 +341,6 @@ async def start(client, message):
 
 
         user_id = m.from_user.id
-
-        # ── File Limit Check — BEFORE verification so limit message shows correctly ──
-        is_allfiles_request = data and data.startswith("allfiles")
-        if IS_FILE_LIMIT and FILES_LIMIT > 0 and not is_allfiles_request and not await db.has_premium_access(user_id):
-            current_file_count = await db.get_file_limit(user_id)
-            if current_file_count >= FILES_LIMIT:
-                await sticker.delete() if sticker else None
-                limit_buttons = []
-                try:
-                    lmt_settings = await get_settings(grp_id)
-                    is_second_shortener_lmt = await db.use_second_shortener(user_id, lmt_settings.get('verify_time', TWO_VERIFY_GAP))
-                    is_third_shortener_lmt = await db.use_third_shortener(user_id, lmt_settings.get('third_verify_time', THREE_VERIFY_GAP))
-                    if lmt_settings.get("is_verify", IS_VERIFY):
-                        lmt_verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                        await db.create_verify_id(user_id, lmt_verify_id)
-                        temp.VERIFICATIONS[user_id] = grp_id
-                        verify_url = await get_shortlink(
-                            f"https://telegram.me/{temp.U_NAME}?start=limitverify_{user_id}_{lmt_verify_id}_{file_id}",
-                            grp_id, is_second_shortener_lmt, is_third_shortener_lmt
-                        )
-                        limit_buttons.append([InlineKeyboardButton(text="♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴍᴏʀᴇ ꜰɪʟᴇs ♻️", url=verify_url)])
-                except Exception:
-                    pass
-                limit_buttons.append([InlineKeyboardButton("🚀 Buy Premium 🚀", callback_data="premium_info")])
-                return await message.reply_text(
-                    f"<b>⚠️ ʏᴏᴜ ʜᴀᴠᴇ ʀᴇᴀᴄʜᴇᴅ ʏᴏᴜʀ ꜰʀᴇᴇ ꜰɪʟᴇ ʟɪᴍɪᴛ!\n\n"
-                    f"📊 ᴜsᴇᴅ: {current_file_count}/{FILES_LIMIT} ꜰʀᴇᴇ ꜰɪʟᴇs\n\n"
-                    f"♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ  ᴏʀ\n"
-                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!</b>",
-                    reply_markup=InlineKeyboardMarkup(limit_buttons),
-                    parse_mode=enums.ParseMode.HTML
-                )
-            await db.increment_file_limit(user_id)
-            current_file_count += 1
-
         if not await db.has_premium_access(user_id):
             try:
                 grp_id = int(grp_id)
@@ -411,7 +376,7 @@ async def start(client, message):
                         reply_markup=reply_markup,
                         parse_mode=enums.ParseMode.HTML
                     )
-                    await sticker.delete()
+                    if sticker: await sticker.delete()
                     await asyncio.sleep(300) 
                     await n.delete()
                     await m.delete()
@@ -419,6 +384,40 @@ async def start(client, message):
             except Exception as e:
                 print(f"Error In Verification - {e}")
                 pass
+
+        # File Limit Check (after verification — only increments when file will actually be sent)
+        is_allfiles_request = data and data.startswith("allfiles")
+        if IS_FILE_LIMIT and FILES_LIMIT > 0 and not is_allfiles_request and not await db.has_premium_access(user_id):
+            current_file_count = await db.get_file_limit(user_id)
+            if current_file_count >= FILES_LIMIT:
+                if sticker: await sticker.delete() if sticker else None
+                limit_buttons = []
+                try:
+                    lmt_settings = await get_settings(grp_id)
+                    is_second_shortener_lmt = await db.use_second_shortener(user_id, lmt_settings.get('verify_time', TWO_VERIFY_GAP))
+                    is_third_shortener_lmt = await db.use_third_shortener(user_id, lmt_settings.get('third_verify_time', THREE_VERIFY_GAP))
+                    if lmt_settings.get("is_verify", IS_VERIFY):
+                        lmt_verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                        await db.create_verify_id(user_id, lmt_verify_id)
+                        temp.VERIFICATIONS[user_id] = grp_id
+                        verify_url = await get_shortlink(
+                            f"https://telegram.me/{temp.U_NAME}?start=limitverify_{user_id}_{lmt_verify_id}_{file_id}",
+                            grp_id, is_second_shortener_lmt, is_third_shortener_lmt
+                        )
+                        limit_buttons.append([InlineKeyboardButton(text="♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴍᴏʀᴇ ꜰɪʟᴇs ♻️", url=verify_url)])
+                except Exception:
+                    pass
+                limit_buttons.append([InlineKeyboardButton("🚀 Buy Premium 🚀", callback_data="premium_info")])
+                return await message.reply_text(
+                    f"<b>⚠️ ʏᴏᴜ ʜᴀᴠᴇ ʀᴇᴀᴄʜᴇᴅ ʏᴏᴜʀ ꜰʀᴇᴇ ꜰɪʟᴇ ʟɪᴍɪᴛ!\n\n"
+                    f"📊 ᴜsᴇᴅ: {current_file_count}/{FILES_LIMIT} ꜰʀᴇᴇ ꜰɪʟᴇs\n\n"
+                    f"♻️ ᴠᴇʀɪꜰʏ ᴛᴏ ʀᴇsᴇᴛ ʏᴏᴜʀ ʟɪᴍɪᴛ  ᴏʀ\n"
+                    f"💎 ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ꜰᴏʀ ᴜɴʟɪᴍɪᴛᴇᴅ ꜰɪʟᴇs!</b>",
+                    reply_markup=InlineKeyboardMarkup(limit_buttons),
+                    parse_mode=enums.ParseMode.HTML
+                )
+            await db.increment_file_limit(user_id)
+            current_file_count += 1
 
         # Now, await the file details task
         files_ = await file_details_task
@@ -438,7 +437,7 @@ async def start(client, message):
                     cover = files1.cover
                     size = get_size(files1.file_size)
                     f_caption = files1.caption
-                    settings = await get_settings(int(grp_id))
+                    settings = await get_settings(int(grp_id)) or {}
                     DREAMX_CAPTION = settings.get('caption', CUSTOM_FILE_CAPTION)
                     if DREAMX_CAPTION:
                         try:
@@ -459,7 +458,7 @@ async def start(client, message):
                     )
                     filesarr.append(msg)
                 k = await client.send_message(chat_id=message.from_user.id, text=script.DEL_MSG.format(get_time(DELETE_TIME)), parse_mode=enums.ParseMode.HTML)
-                await sticker.delete()
+                if sticker: await sticker.delete()
                 await asyncio.sleep(DELETE_TIME)
                 for x in filesarr:
                     await x.delete()
@@ -498,7 +497,7 @@ async def start(client, message):
                 title = clean_filename(file.file_name)
                 size=get_size(file.file_size)
                 f_caption = f"<code>{title}</code>"
-                settings = await get_settings(int(grp_id))
+                settings = await get_settings(int(grp_id)) or {}
                 DREAMX_CAPTION = settings.get('caption', CUSTOM_FILE_CAPTION)
                 if DREAMX_CAPTION:
                     try:
@@ -512,7 +511,7 @@ async def start(client, message):
                 k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
                     quote=True, parse_mode=enums.ParseMode.HTML
                 )
-                await sticker.delete()
+                if sticker: await sticker.delete()
                 await asyncio.sleep(DELETE_TIME)
                 await msg.delete()
                 await k.edit_text("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
@@ -527,7 +526,7 @@ async def start(client, message):
         size = get_size(files.file_size)
         cover = files.cover if files.cover else None
         f_caption = files.caption
-        settings = await get_settings(int(grp_id))            
+        settings = await get_settings(int(grp_id)) or {}
         DREAMX_CAPTION = settings.get('caption', CUSTOM_FILE_CAPTION)
         if DREAMX_CAPTION:
             try:
@@ -551,7 +550,7 @@ async def start(client, message):
         k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
             quote=True, parse_mode=enums.ParseMode.HTML
         )
-        await sticker.delete()
+        if sticker: await sticker.delete()
         await asyncio.sleep(DELETE_TIME)
         await msg.delete()
         await k.edit_text("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
@@ -564,7 +563,7 @@ async def start(client, message):
     finally:
         if sticker:
             try:
-                await sticker.delete()
+                if sticker: await sticker.delete()
             except Exception as e:
                 logger.exception(f"Error In Deleting Sticker - {e}")
                 pass
