@@ -149,7 +149,11 @@ async def refercall(bot, query):
 
 @Client.on_callback_query(filters.regex(r"^next"))
 async def next_page(bot, query):
-    ident, req, key, offset = query.data.split("_")
+    # Use maxsplit=3 so the key (which may contain dashes) is never split further
+    parts = query.data.split("_", 3)
+    if len(parts) != 4:
+        return await query.answer("Invalid pagination data.", show_alert=True)
+    ident, req, key, offset = parts
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
     if int(req) not in [query.from_user.id, 0]:
         return await query.answer(script.ALRT_TXT.format(query.from_user.first_name), show_alert=True)
